@@ -17,8 +17,10 @@ pipeline {
         // catatan : simpan token dan chat ID di Jenkins Credentials
         // -> gunakan credentials dengan tipe 'Secret text' untuk token dan 'Username with password'
         // -> pastikan nama credentials sesuai dengan yang digunakan di bawah ini
-        TELEGRAM_BOT_TOKEN = credentials('TG_TOKEN')    
-        TELEGRAM_CHAT_ID = credentials('TG_CHAT_ID')
+        // TELEGRAM_BOT_TOKEN = credentials('TG_TOKEN')    
+        // TELEGRAM_CHAT_ID = credentials('TG_CHAT_ID')
+        TELEGRAM_BOT_TOKEN = "XXX"    
+        TELEGRAM_CHAT_ID = "XXX"
         
         // Catatan : apabila nama credentialsnya : TELEGRAM_BOT_TOKEN dan TELEGRAM_CHAT_ID, maka akan ada error
         // -> Telegram semacam mendeteksi dan langsung masking
