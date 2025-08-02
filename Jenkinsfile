@@ -32,7 +32,7 @@ pipeline {
         COVERAGE_THRESHOLD = '70'
 
         // Git Repository URL
-        GIT_REPO_URL = 'https://github.com/zikazama/jenkins.git'
+        GIT_REPO_URL = 'https://github.com/bostang/jenkins-experiments.git'
         // Branch Name
         BRANCH_NAME = 'main'
     }
