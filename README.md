@@ -1,0 +1,43 @@
+# Experiment Jenkins
+
+**Langkah 0** : Buat Volume untuk Jenkins
+
+```bash
+docker volume create jenkins-data
+
+docker run --name jenkins -p 8080:8080 -p 50000:50000 -v jenkins-data:/var/jenkins_home jenkins/jenkins:lts
+```
+
+**Langkah 1** : Siapkan container Jenkins (customer)
+
+```bash
+# build customer docker image for jenkins (docker installed inside)
+docker build -t my-jenkins:lts -f Dockerfile.jenkins .
+
+# remove old plain jenkins (if exists)
+docker stop jenkins
+docker rm jenkins
+
+# cek ID group docker di host
+getent group docker
+
+# run the custom jenkins image
+docker run \
+  --name jenkins \
+  -p 8080:8080 \
+  -p 50000:50000 \
+  -v jenkins-data:/var/jenkins_home \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  --group-add 1001 \
+  my-jenkins:lts
+```
+
+**Langkah 2** : Install plugins dan atur credentials
+
+- Agar build bisa ter-trigger dari Github:
+  - Docker Pipeline
+    - Manage Jenkins > Manage Plugins > `Docker Pipeline`
+  - NodeJS
+    - Manage Jenkins > Manage Plugins > NodeJS Plugin
+
+**Langkah 3** : Buat new build (pipeline), tambahkan GithubSCM (agar baca Jenkinsfile dari repo)
