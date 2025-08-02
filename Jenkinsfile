@@ -553,7 +553,7 @@ def getStartMessage() {
     """
 }
 
-def postDeploymentReport(String endTime, String duration) {
+def getPostDeploymentReport(String endTime, String duration) {
     return """
     📊 <b>Post-Deployment Report</b>
     ━━━━━━━━━━━━━━━━━━━━━━━
