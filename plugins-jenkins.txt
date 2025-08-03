@@ -4,3 +4,4 @@ git
 workflow-aggregator
 credentials-binding
 envinject
+nodejs

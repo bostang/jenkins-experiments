@@ -171,9 +171,11 @@ pipeline {
                     echo '🔨 Building frontend application...'
                     
                     dir('frontend-repo') {
-                        sh 'npm install' // Instal dependensi
-                        sh 'npm run build' // Jalankan perintah build Vite.js
-                        echo '✅ Frontend build completed successfully'
+                        withEnv(["PATH+NODE=${tool 'node18'}/bin"]) {
+                            sh 'npm install' // Instal dependensi
+                            sh 'npm run build' // Jalankan perintah build Vite.js
+                            echo '✅ Frontend build completed successfully'
+                        }
                     }
                 }
                 

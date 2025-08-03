@@ -48,7 +48,12 @@ docker run \
   - Docker Pipeline
     - Manage Jenkins > Manage Plugins > `Docker Pipeline`
   - NodeJS
-    - Manage Jenkins > Manage Plugins > NodeJS Plugin
+    - Manage Jenkins > Manage Plugins > NodeJS Plugin > tools
+      - node18
+      - v18.19.1
+  - Jdk
+    - jdk21
+    - automatically
 
 **Langkah 3** : Buat new build (pipeline), tambahkan GithubSCM (agar baca Jenkinsfile dari repo)
 
