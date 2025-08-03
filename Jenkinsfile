@@ -148,16 +148,41 @@ pipeline {
         
         stage('🔨 Build Application') {
             steps {
-                echo '🔨 Building the application...'
-                echo 'mvn clean compile -B'
-                echo '✅ Application build completed successfully'
+                script {
+                    // Build Backend Application (Java Spring Boot)
+                    echo '🔨 Building backend application...'
+                    
+                    dir('backend-repo') {
+                        // Pastikan versi JDK yang sesuai tersedia.
+                        // Anda bisa menggunakan 'tool' untuk memilih versi JDK yang sudah dikonfigurasi di Jenkins.
+                        // Di sini, kita akan menggunakan 'withEnv' untuk memastikan 'JAVA_HOME' mengarah ke JDK 21.
+                        // Jika JDK 21 sudah disiapkan di Jenkins Global Tool Configuration dengan nama 'jdk21',
+                        // Anda bisa menggantinya dengan: withEnv(["JAVA_HOME=${tool 'jdk21'}"])
+                        withEnv(["JAVA_HOME=${tool 'jdk21'}"]) {
+                            sh 'mvn clean package -DskipTests'
+                        }
+                        echo '✅ Backend build completed successfully'
+                    }
+
+                    // Build Frontend Application (React / Vite.js)
+                    echo '🔨 Building frontend application...'
+                    
+                    dir('frontend-repo') {
+                        sh 'npm install' // Instal dependensi
+                        sh 'npm run build' // Jalankan perintah build Vite.js
+                        echo '✅ Frontend build completed successfully'
+                    }
+                }
                 
+                // Kirim notifikasi setelah semua proses build selesai
                 script {
                     if (params.ENABLE_NOTIFICATIONS) {
-                        sendTelegramMessage("🔨 <b>Build Stage Completed</b>\n✅ Application compiled successfully")
+                        sendTelegramMessage("🔨 <b>Build Stage Completed</b>\n✅ Backend and frontend compiled successfully")
                     }
                 }
             }
+            
+            // Blok `post` yang sudah ada cukup baik untuk menangani kegagalan.
             post {
                 failure {
                     script {
