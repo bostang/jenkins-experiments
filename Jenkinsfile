@@ -290,6 +290,64 @@ pipeline {
             }
         }
         
+        // stage('🐳 Docker Build & Registry') {
+        //     steps {
+        //         script {
+        //             // Gunakan `dir()` untuk memastikan kita berada di folder yang benar saat build Docker
+        //             // Backend Docker Build
+        //             dir('backend-repo') {
+        //                 echo '🐳 Building backend Docker image...'
+                        
+        //                 def beImage = docker.build("asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-be:${env.FINAL_TAG}", ".")
+                        
+        //                 echo '✅ Backend Docker image built successfully'
+
+        //                 // memeriksa credentials id ada
+        //                 try {
+        //                     withCredentials([file(credentialsId: 'gcr-credentials', variable: 'GCR_KEY_FILE')]) {
+        //                         sh 'echo "File GCR key found at ${GCR_KEY_FILE}"'
+        //                         // Perintah ini akan gagal jika kredensial tidak ditemukan
+        //                     }
+        //                 } catch (Exception e) {
+        //                     echo "❌ Kredensial 'gcr-credentials' tidak dapat diakses. Error: ${e.getMessage()}"
+        //                     currentBuild.result = 'FAILURE'
+        //                     return
+        //                 }
+        //                 // Push ke Google Container Registry
+        //                 // Pastikan credentials GCR (Service Account Key) sudah disimpan di Jenkins
+        //                 // dengan ID yang sesuai, misalnya 'gcr-credentials'
+        //                 docker.withRegistry('https://asia.gcr.io', 'gcr-credentials') {
+        //                     beImage.push()
+        //                 }
+        //                 echo "✅ Backend Docker image pushed to GCR: asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-be:${env.FINAL_TAG}"
+        //             }
+
+        //             // Frontend Docker Build
+        //             dir('frontend-repo') {
+        //                 echo '🐳 Building frontend Docker image...'
+                        
+        //                 def feImage = docker.build("asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-fe:${env.FINAL_TAG}", ".")
+                        
+        //                 echo '✅ Frontend Docker image built successfully'
+                        
+        //                 // Push ke Google Container Registry
+        //                 docker.withRegistry('https://asia.gcr.io', 'gcr-credentials') {
+        //                     feImage.push()
+        //                 }
+        //                 echo "✅ Frontend Docker image pushed to GCR: asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-fe:${env.FINAL_TAG}"
+        //             }
+        //         }
+
+        //         script {
+        //             if (params.ENABLE_NOTIFICATIONS) {
+        //                 sendTelegramMessage("🐳 <b>Docker Image Built & Pushed</b>\n" +
+        //                                 "🏷️ **Backend:** asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-be:${env.FINAL_TAG}\n" +
+        //                                 "🏷️ **Frontend:** asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-fe:${env.FINAL_TAG}")
+        //             }
+        //         }
+        //     }
+        // }
+        
         stage('🐳 Docker Build & Registry') {
             steps {
                 script {
@@ -302,22 +360,21 @@ pipeline {
                         
                         echo '✅ Backend Docker image built successfully'
 
-                        // memeriksa credentials id ada
-                        try {
-                            withCredentials([file(credentialsId: 'gcr-credentials', variable: 'GCR_KEY_FILE')]) {
-                                sh 'echo "File GCR key found at ${GCR_KEY_FILE}"'
-                                // Perintah ini akan gagal jika kredensial tidak ditemukan
-                            }
-                        } catch (Exception e) {
-                            echo "❌ Kredensial 'gcr-credentials' tidak dapat diakses. Error: ${e.getMessage()}"
-                            currentBuild.result = 'FAILURE'
-                            return
-                        }
+                        // --- BAGIAN INI YANG KITA MODIFIKASI SECARA SIGNIFICANT ---
                         // Push ke Google Container Registry
                         // Pastikan credentials GCR (Service Account Key) sudah disimpan di Jenkins
                         // dengan ID yang sesuai, misalnya 'gcr-credentials'
-                        docker.withRegistry('https://asia.gcr.io', 'gcr-credentials') {
-                            beImage.push()
+                        withCredentials([file(credentialsId: 'gcr-credentials', variable: 'GCR_KEY_FILE')]) {
+                            echo '🔐 Authenticating to Google Container Registry...'
+                            
+                            // Gunakan kredensial yang sudah diekspos sebagai file untuk login ke Docker
+                            sh "cat ${GCR_KEY_FILE} | docker login -u _json_key --password-stdin https://asia.gcr.io"
+                            
+                            // Setelah login berhasil, push image
+                            // Note: withDockerRegistry tidak lagi membutuhkan credentialsId, karena kita sudah login
+                            docker.withRegistry('https://asia.gcr.io') {
+                                beImage.push()
+                            }
                         }
                         echo "✅ Backend Docker image pushed to GCR: asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-be:${env.FINAL_TAG}"
                     }
@@ -331,23 +388,21 @@ pipeline {
                         echo '✅ Frontend Docker image built successfully'
                         
                         // Push ke Google Container Registry
-                        docker.withRegistry('https://asia.gcr.io', 'gcr-credentials') {
-                            feImage.push()
+                        // Gunakan blok withCredentials dan sh untuk login
+                        withCredentials([file(credentialsId: 'gcr-credentials', variable: 'GCR_KEY_FILE')]) {
+                            echo '🔐 Authenticating to Google Container Registry...'
+                            sh "cat ${GCR_KEY_FILE} | docker login -u _json_key --password-stdin https://asia.gcr.io"
+                            docker.withRegistry('https://asia.gcr.io') {
+                                feImage.push()
+                            }
                         }
                         echo "✅ Frontend Docker image pushed to GCR: asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-fe:${env.FINAL_TAG}"
                     }
                 }
-
-                script {
-                    if (params.ENABLE_NOTIFICATIONS) {
-                        sendTelegramMessage("🐳 <b>Docker Image Built & Pushed</b>\n" +
-                                        "🏷️ **Backend:** asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-be:${env.FINAL_TAG}\n" +
-                                        "🏷️ **Frontend:** asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-fe:${env.FINAL_TAG}")
-                    }
-                }
+                // ... (sisanya tetap sama)
             }
         }
-        
+
         stage('🎯 Staging Deployment') {
             when {
                 anyOf {
