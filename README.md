@@ -55,6 +55,10 @@ docker run \
     - jdk21
     - automatically
 
+- Agar docker build & push ke registry sukses
+  - upload `.json` (secret key service accounts) ke jenkins secrets
+  - ID : `gcr-credentials`
+
 **Langkah 3** : Buat new build (pipeline), tambahkan GithubSCM (agar baca Jenkinsfile dari repo)
 
 ```bash

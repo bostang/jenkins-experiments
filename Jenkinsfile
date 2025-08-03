@@ -298,7 +298,7 @@ pipeline {
                     dir('backend-repo') {
                         echo '🐳 Building backend Docker image...'
                         
-                        def beImage = docker.build("asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-be:${env.FINAL_TAG}", "-f docker/Dockerfile .")
+                        def beImage = docker.build("asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-be:${env.FINAL_TAG}", ".")
                         
                         echo '✅ Backend Docker image built successfully'
 
@@ -315,7 +315,7 @@ pipeline {
                     dir('frontend-repo') {
                         echo '🐳 Building frontend Docker image...'
                         
-                        def feImage = docker.build("asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-fe:${env.FINAL_TAG}", "-f docker/Dockerfile .")
+                        def feImage = docker.build("asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-fe:${env.FINAL_TAG}", ".")
                         
                         echo '✅ Frontend Docker image built successfully'
                         
