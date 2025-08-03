@@ -46,6 +46,9 @@ pipeline {
         // Firebase service accounts
         FIREBASE_KEY_FILE_NAME = 'wondr-desktop-otp-firebase-adminsdk-fbsvc-779cc379ef.json'
 
+        // Cluster dan Zone
+        gkeClusterName = 'my-gke-cluster'
+        gkeClusterZone = 'asia-southeast2-a'
     }
     
     parameters {
@@ -560,11 +563,31 @@ pipeline {
                     env.DEVOPS_DECISION = 'Deploy'
                     env.DEPLOYMENT_NOTES = 'Auto-approved for pipeline demo'
                     
-                    echo '🚀 Deploying to production environment...'
-                    deployToEnvironment('prod', 8090, env.DOCKER_IMAGE_FINAL)
+                    echo '🚀 Deploying to GKE production cluster...'
+                    
+                    // Menggunakan withCredentials untuk autentikasi gcloud
+                    withCredentials([file(credentialsId: 'gcr-credentials', variable: 'GCP_SERVICE_ACCOUNT_KEY')]) {
+                        // Autentikasi gcloud dan dapatkan kredensial cluster GKE
+                        sh "gcloud auth activate-service-account --key-file=\$GCP_SERVICE_ACCOUNT_KEY"
+                        
+                        // Perintah untuk mendapatkan kredensial kubectl
+                        sh "gcloud container clusters get-credentials ${env.gkeClusterName} --zone ${env.gkeClusterZone}"
+                        
+                        // Masuk ke direktori manifest Kubernetes
+                        dir('ops-repo/k8s/application') {
+                            // Gunakan kubectl apply untuk menerapkan semua manifest
+                            // Perintah ini akan memperbarui atau membuat sumber daya berdasarkan file YAML
+                            sh 'kubectl apply -f .'
+                            
+                            echo '✅ Kubernetes manifests applied successfully!'
+                        }
+                    }
+
+                    // Hapus fungsi deployToEnvironment karena sudah tidak digunakan lagi
+                    // deployToEnvironment('prod', 8090, env.DOCKER_IMAGE_FINAL)
                     
                     if (params.ENABLE_NOTIFICATIONS) {
-                        sendTelegramMessage("🚀 <b>Production Deployment</b>\n✅ Deployed successfully\n👤 Approved by: DevOps\n💬 Notes: ${env.DEPLOYMENT_NOTES}\n🔗 URL: ${env.PRODUCTION_URL}")
+                        sendTelegramMessage("🚀 <b>Production Deployment</b>\n✅ Deployed to GKE successfully\n👤 Approved by: DevOps\n💬 Notes: ${env.DEPLOYMENT_NOTES}\n🎉 Deployment to Kubernetes complete!")
                     }
                 }
             }
