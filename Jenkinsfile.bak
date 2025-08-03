@@ -292,46 +292,13 @@ pipeline {
         
         stage('🐳 Docker Build & Registry') {
             steps {
+                echo '🐳 Building Docker image...'
                 script {
-                    // Gunakan `dir()` untuk memastikan kita berada di folder yang benar saat build Docker
-                    // Backend Docker Build
-                    dir('backend-repo') {
-                        echo '🐳 Building backend Docker image...'
-                        
-                        def beImage = docker.build("asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-be:${env.FINAL_TAG}", "-f docker/Dockerfile .")
-                        
-                        echo '✅ Backend Docker image built successfully'
-
-                        // Push ke Google Container Registry
-                        // Pastikan credentials GCR (Service Account Key) sudah disimpan di Jenkins
-                        // dengan ID yang sesuai, misalnya 'gcr-credentials'
-                        docker.withRegistry('https://asia.gcr.io', 'gcr-credentials') {
-                            beImage.push()
-                        }
-                        echo "✅ Backend Docker image pushed to GCR: asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-be:${env.FINAL_TAG}"
-                    }
-
-                    // Frontend Docker Build
-                    dir('frontend-repo') {
-                        echo '🐳 Building frontend Docker image...'
-                        
-                        def feImage = docker.build("asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-fe:${env.FINAL_TAG}", "-f docker/Dockerfile .")
-                        
-                        echo '✅ Frontend Docker image built successfully'
-                        
-                        // Push ke Google Container Registry
-                        docker.withRegistry('https://asia.gcr.io', 'gcr-credentials') {
-                            feImage.push()
-                        }
-                        echo "✅ Frontend Docker image pushed to GCR: asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-fe:${env.FINAL_TAG}"
-                    }
-                }
-
-                script {
+                    echo "docker.build(\"${env.DOCKER_IMAGE_FINAL}\", \"-f docker/Dockerfile .\")"
+                    echo "✅ Docker image built: ${env.DOCKER_IMAGE_FINAL}"
+                    
                     if (params.ENABLE_NOTIFICATIONS) {
-                        sendTelegramMessage("🐳 <b>Docker Image Built & Pushed</b>\n" +
-                                        "🏷️ **Backend:** asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-be:${env.FINAL_TAG}\n" +
-                                        "🏷️ **Frontend:** asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-fe:${env.FINAL_TAG}")
+                        sendTelegramMessage("🐳 <b>Docker Image Built</b>\n🏷️ Image: ${env.DOCKER_IMAGE_FINAL}")
                     }
                 }
             }
