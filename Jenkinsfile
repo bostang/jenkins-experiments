@@ -164,18 +164,22 @@ pipeline {
                     withCredentials([file(credentialsId: 'firebase-private-key', variable: 'FIREBASE_KEY_FILE')]) {
                         // Pastikan kita berada di direktori backend
                         dir('backend-repo') {
-                            // Buat direktori resources jika belum ada
+                            // Pastikan direktori src/main/resources ada dan memiliki izin tulis
                             sh 'mkdir -p src/main/resources'
+                            sh 'chmod -R 777 src/main/resources' // Memastikan izin tulis untuk semua user
                             
                             // Salin file private key yang diekspos oleh Jenkins ke direktori target
-                            sh "cp \$FIREBASE_KEY_FILE src/main/resources/${env.FIREBASE_KEY_FILE_NAME}"
+                            // Kita perlu mendapatkan nama file asli dari file yang diunggah di Jenkins
+                            // Untuk mengabaikan nama file asli, kita gunakan nama standar
+                            def firebaseKeyFileName = 'service-account-key.json' // Ganti dengan nama file standar yang diinginkan
+                            sh "cp \"$FIREBASE_KEY_FILE\" \"src/main/resources/${firebaseKeyFileName}\""
                             
                             echo '✅ Firebase private key injected successfully'
                         }
                     }
                 }
             }
-        }     
+        }
 
         // jangan lupa untu menginstall JDK 21 di Jenkins Global Tool Configuration
         // dan pastikan nama JDK sesuai dengan yang digunakan di bawah ini
