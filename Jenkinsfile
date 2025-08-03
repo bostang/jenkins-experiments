@@ -302,6 +302,17 @@ pipeline {
                         
                         echo '✅ Backend Docker image built successfully'
 
+                        // memeriksa credentials id ada
+                        try {
+                            withCredentials([file(credentialsId: 'gcr-credentials', variable: 'GCR_KEY_FILE')]) {
+                                sh 'echo "File GCR key found at ${GCR_KEY_FILE}"'
+                                // Perintah ini akan gagal jika kredensial tidak ditemukan
+                            }
+                        } catch (Exception e) {
+                            echo "❌ Kredensial 'gcr-credentials' tidak dapat diakses. Error: ${e.getMessage()}"
+                            currentBuild.result = 'FAILURE'
+                            return
+                        }
                         // Push ke Google Container Registry
                         // Pastikan credentials GCR (Service Account Key) sudah disimpan di Jenkins
                         // dengan ID yang sesuai, misalnya 'gcr-credentials'
