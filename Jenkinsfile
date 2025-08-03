@@ -152,31 +152,27 @@ pipeline {
         stage('🔨 Build Application') {
             steps {
                 script {
-                    // Build Backend Application (Java Spring Boot)
-                    echo '🔨 Building backend application...'
-                    
-                    dir('backend-repo') {
-                        // Pastikan versi JDK yang sesuai tersedia.
-                        // Anda bisa menggunakan 'tool' untuk memilih versi JDK yang sudah dikonfigurasi di Jenkins.
-                        // Di sini, kita akan menggunakan 'withEnv' untuk memastikan 'JAVA_HOME' mengarah ke JDK 21.
-                        // Jika JDK 21 sudah disiapkan di Jenkins Global Tool Configuration dengan nama 'jdk21',
-                        // Anda bisa menggantinya dengan: withEnv(["JAVA_HOME=${tool 'jdk21'}"])
-                        withEnv(["JAVA_HOME=${tool 'jdk21'}"]) {
-                            sh 'mvn clean package -DskipTests'
+                    parallel(
+                        'Build Backend': {
+                            echo '🔨 Building backend application...'
+                            dir('backend-repo') {
+                                withEnv(["JAVA_HOME=${tool 'jdk21'}"]) {
+                                    sh 'mvn clean package -DskipTests'
+                                }
+                                echo '✅ Backend build completed successfully'
+                            }
+                        },
+                        'Build Frontend': {
+                            echo '🔨 Building frontend application...'
+                            dir('frontend-repo') {
+                                withEnv(["PATH+NODE=${tool 'node18'}/bin"]) {
+                                    sh 'npm install'
+                                    sh 'npm run build'
+                                    echo '✅ Frontend build completed successfully'
+                                }
+                            }
                         }
-                        echo '✅ Backend build completed successfully'
-                    }
-
-                    // Build Frontend Application (React / Vite.js)
-                    echo '🔨 Building frontend application...'
-                    
-                    dir('frontend-repo') {
-                        withEnv(["PATH+NODE=${tool 'node18'}/bin"]) {
-                            sh 'npm install' // Instal dependensi
-                            sh 'npm run build' // Jalankan perintah build Vite.js
-                            echo '✅ Frontend build completed successfully'
-                        }
-                    }
+                    )
                 }
                 
                 // Kirim notifikasi setelah semua proses build selesai
@@ -187,7 +183,6 @@ pipeline {
                 }
             }
             
-            // Blok `post` yang sudah ada cukup baik untuk menangani kegagalan.
             post {
                 failure {
                     script {
