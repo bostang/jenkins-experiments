@@ -34,7 +34,7 @@ pipeline {
         COVERAGE_THRESHOLD = '70'
 
         // Git Repository URL & // Branch Name
-        GIT_REPO_URL_OPS = 'https://github.com/bostang/jenkins-experiments.git'
+        GIT_REPO_URL_OPS = 'https://github.com/qanitasyaf/ops-secure-onboarding-system.git'
         BRANCH_NAME_OPS = 'main'
 
         GIT_REPO_URL_BE = 'https://github.com/bostang/backend-secure-onboarding-system.git'
@@ -91,6 +91,7 @@ pipeline {
             }
         }
         
+        // ✅ SUKSES (2025-08-03 09:16)
         stage('📥 Source Code Checkout') {
             steps {
                 echo '📥 Checking out source code...'
