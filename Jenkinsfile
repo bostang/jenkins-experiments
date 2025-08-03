@@ -43,6 +43,9 @@ pipeline {
         GIT_REPO_URL_FE = 'https://github.com/alvarolt17/frontend-secure-onboarding-system.git'
         BRANCH_NAME_FE = 'deploy/gke'
 
+        // Firebase service accounts
+        FIREBASE_KEY_FILE_NAME = 'wondr-desktop-otp-firebase-adminsdk-fbsvc-779cc379ef.json'
+
     }
     
     parameters {
@@ -149,7 +152,31 @@ pipeline {
                 sh 'ls -la'
             }
         }
-        
+
+
+        // ✅ TAHAPAN: Inject Firebase Private Key ke backend
+        stage('🔑 Inject Secrets') {
+            steps {
+                echo '🔑 Injecting secrets into workspace...'
+                
+                script {
+                    // Menggunakan withCredentials untuk mengakses file private key Firebase
+                    withCredentials([file(credentialsId: 'firebase-private-key', variable: 'FIREBASE_KEY_FILE')]) {
+                        // Pastikan kita berada di direktori backend
+                        dir('backend-repo') {
+                            // Buat direktori resources jika belum ada
+                            sh 'mkdir -p src/main/resources'
+                            
+                            // Salin file private key yang diekspos oleh Jenkins ke direktori target
+                            sh "cp \$FIREBASE_KEY_FILE src/main/resources/${env.FIREBASE_KEY_FILE_NAME}"
+                            
+                            echo '✅ Firebase private key injected successfully'
+                        }
+                    }
+                }
+            }
+        }     
+
         // jangan lupa untu menginstall JDK 21 di Jenkins Global Tool Configuration
         // dan pastikan nama JDK sesuai dengan yang digunakan di bawah ini
         // -> misal: jdk21
