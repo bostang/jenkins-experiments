@@ -69,6 +69,11 @@ pipeline {
             defaultValue: '',
             description: 'Custom Docker tag (optional)'
         )
+        booleanParam(
+        name: 'CREATE_NEW_CLUSTER',
+        defaultValue: false,
+        description: 'Set to true to create a new Google Cloud cluster using Terraform'
+    )
     }
     
     stages {
@@ -486,6 +491,54 @@ pipeline {
             }
         }
         
+        stage('☁️ Create GKE Cluster') {
+            when {
+                expression { params.CREATE_NEW_CLUSTER == true }
+            }
+            steps {
+                echo '☁️ Creating a new GKE cluster with Terraform...'
+                
+                script {
+                    // Gunakan withCredentials untuk otentikasi ke Google Cloud
+                    // Pastikan kredensial GCR juga dapat digunakan untuk otentikasi gcloud/Terraform
+                    withCredentials([file(credentialsId: 'gcr-credentials', variable: 'GCP_SERVICE_ACCOUNT_KEY')]) {
+                        dir('ops-repo/terraform-v2') {
+                            // Gunakan kredensial yang diekspos untuk autentikasi gcloud
+                            // Perintah ini akan mengatur akun service default untuk Terraform
+                            sh "gcloud auth activate-service-account --key-file=\$GCP_SERVICE_ACCOUNT_KEY"
+                            
+                            // Inisialisasi Terraform
+                            sh 'terraform init'
+                            
+                            // Jalankan terraform plan dan simpan hasilnya
+                            sh 'terraform plan -out=tfplan'
+                            
+                            // Apply konfigurasi secara otomatis
+                            sh 'terraform apply -auto-approve tfplan'
+                            
+                            echo '✅ GKE cluster created successfully!'
+                        }
+                    }
+                }
+            }
+            post {
+                success {
+                    script {
+                        if (params.ENABLE_NOTIFICATIONS) {
+                            sendTelegramMessage("☁️ <b>GKE Cluster Created</b>\n✅ Terraform apply successful")
+                        }
+                    }
+                }
+                failure {
+                    script {
+                        if (params.ENABLE_NOTIFICATIONS) {
+                            sendTelegramMessage("❌ <b>GKE Cluster Creation Failed</b>\n🚨 Terraform encountered errors")
+                        }
+                    }
+                }
+            }
+        }
+
         stage('🚀 Production Deployment') {
             when {
                 anyOf {
