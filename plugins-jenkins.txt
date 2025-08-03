@@ -1,0 +1,6 @@
+docker-commons
+docker-workflow
+git
+workflow-aggregator
+credentials-binding
+envinject
