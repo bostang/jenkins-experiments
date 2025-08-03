@@ -99,7 +99,7 @@ pipeline {
                 script {
                     // Checkout repositori Ops
                     echo "--- Checking out Ops repository ---"
-                    dir('ops-repo') { // Membuat direktori 'ops-repo' untuk repositori ini
+                    dir('ops-repo') {
                         checkout([
                             $class: 'GitSCM',
                             branches: [[name: "refs/heads/${env.BRANCH_NAME_OPS}"]],
@@ -107,28 +107,32 @@ pipeline {
                         ])
                     }
                     
-                    // Checkout repositori Backend
-                    echo "--- Checking out Backend repository ---"
-                    dir('backend-repo') { // Membuat direktori 'backend-repo'
-                        checkout([
-                            $class: 'GitSCM',
-                            branches: [[name: "refs/heads/${env.BRANCH_NAME_BE}"]],
-                            userRemoteConfigs: [[url: env.GIT_REPO_URL_BE]]
-                        ])
-                    }
-                    
-                    // Checkout repositori Frontend
-                    echo "--- Checking out Frontend repository ---"
-                    dir('frontend-repo') { // Membuat direktori 'frontend-repo'
-                        checkout([
-                            $class: 'GitSCM',
-                            branches: [[name: "refs/heads/${env.BRANCH_NAME_FE}"]],
-                            userRemoteConfigs: [[url: env.GIT_REPO_URL_FE]]
-                        ])
-                    }
+                    // Menggunakan blok parallel untuk checkout Backend dan Frontend
+                    parallel(
+                        'Checkout Backend': {
+                            echo "--- Checking out Backend repository ---"
+                            dir('backend-repo') {
+                                checkout([
+                                    $class: 'GitSCM',
+                                    branches: [[name: "refs/heads/${env.BRANCH_NAME_BE}"]],
+                                    userRemoteConfigs: [[url: env.GIT_REPO_URL_BE]]
+                                ])
+                            }
+                        },
+                        'Checkout Frontend': {
+                            echo "--- Checking out Frontend repository ---"
+                            dir('frontend-repo') {
+                                checkout([
+                                    $class: 'GitSCM',
+                                    branches: [[name: "refs/heads/${env.BRANCH_NAME_FE}"]],
+                                    userRemoteConfigs: [[url: env.GIT_REPO_URL_FE]]
+                                ])
+                            }
+                        }
+                    )
 
                     // Dapatkan informasi commit dari salah satu repo (misal: backend)
-                    // Langkah ini opsional, tapi berguna untuk notifikasi
+                    // Langkah ini harus dilakukan setelah checkout selesai
                     def beCommit = sh(script: "cd backend-repo && git log -1 --pretty=format:'%h'", returnStdout: true).trim()
                     def beMessage = sh(script: "cd backend-repo && git log -1 --pretty=format:'%s'", returnStdout: true).trim()
                     
@@ -294,55 +298,49 @@ pipeline {
         stage('🐳 Docker Build & Registry') {
             steps {
                 script {
-                    // Gunakan `dir()` untuk memastikan kita berada di folder yang benar saat build Docker
-                    // Backend Docker Build
-                    dir('backend-repo') {
-                        echo '🐳 Building backend Docker image...'
-                        
-                        def beImage = docker.build("asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-be:${env.FINAL_TAG}", ".")
-                        
-                        echo '✅ Backend Docker image built successfully'
+                    parallel(
+                        'Build & Push Backend': {
+                            dir('backend-repo') {
+                                echo '🐳 Building backend Docker image...'
+                                def beImage = docker.build("asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-be:${env.FINAL_TAG}", ".")
+                                echo '✅ Backend Docker image built successfully'
 
-                        // --- BAGIAN INI YANG KITA MODIFIKASI SECARA SIGNIFICANT ---
-                        // Push ke Google Container Registry
-                        // Pastikan credentials GCR (Service Account Key) sudah disimpan di Jenkins
-                        // dengan ID yang sesuai, misalnya 'gcr-credentials'
-                        withCredentials([file(credentialsId: 'gcr-credentials', variable: 'GCR_KEY_FILE')]) {
-                            echo '🔐 Authenticating to Google Container Registry...'
-                            
-                            // Gunakan kredensial yang sudah diekspos sebagai file untuk login ke Docker
-                            sh "cat ${GCR_KEY_FILE} | docker login -u _json_key --password-stdin https://asia.gcr.io"
-                            
-                            // Setelah login berhasil, push image
-                            // Note: withDockerRegistry tidak lagi membutuhkan credentialsId, karena kita sudah login
-                            docker.withRegistry('https://asia.gcr.io') {
-                                beImage.push()
+                                withCredentials([file(credentialsId: 'gcr-credentials', variable: 'GCR_KEY_FILE')]) {
+                                    echo '🔐 Authenticating to Google Container Registry...'
+                                    sh "cat ${GCR_KEY_FILE} | docker login -u _json_key --password-stdin https://asia.gcr.io"
+                                    docker.withRegistry('https://asia.gcr.io') {
+                                        beImage.push()
+                                    }
+                                }
+                                echo "✅ Backend Docker image pushed to GCR: asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-be:${env.FINAL_TAG}"
+                            }
+                        },
+                        'Build & Push Frontend': {
+                            dir('frontend-repo') {
+                                echo '🐳 Building frontend Docker image...'
+                                def feImage = docker.build("asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-fe:${env.FINAL_TAG}", ".")
+                                echo '✅ Frontend Docker image built successfully'
+                                
+                                withCredentials([file(credentialsId: 'gcr-credentials', variable: 'GCR_KEY_FILE')]) {
+                                    echo '🔐 Authenticating to Google Container Registry...'
+                                    sh "cat ${GCR_KEY_FILE} | docker login -u _json_key --password-stdin https://asia.gcr.io"
+                                    docker.withRegistry('https://asia.gcr.io') {
+                                        feImage.push()
+                                    }
+                                }
+                                echo "✅ Frontend Docker image pushed to GCR: asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-fe:${env.FINAL_TAG}"
                             }
                         }
-                        echo "✅ Backend Docker image pushed to GCR: asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-be:${env.FINAL_TAG}"
-                    }
+                    )
+                }
 
-                    // Frontend Docker Build
-                    dir('frontend-repo') {
-                        echo '🐳 Building frontend Docker image...'
-                        
-                        def feImage = docker.build("asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-fe:${env.FINAL_TAG}", ".")
-                        
-                        echo '✅ Frontend Docker image built successfully'
-                        
-                        // Push ke Google Container Registry
-                        // Gunakan blok withCredentials dan sh untuk login
-                        withCredentials([file(credentialsId: 'gcr-credentials', variable: 'GCR_KEY_FILE')]) {
-                            echo '🔐 Authenticating to Google Container Registry...'
-                            sh "cat ${GCR_KEY_FILE} | docker login -u _json_key --password-stdin https://asia.gcr.io"
-                            docker.withRegistry('https://asia.gcr.io') {
-                                feImage.push()
-                            }
-                        }
-                        echo "✅ Frontend Docker image pushed to GCR: asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-fe:${env.FINAL_TAG}"
+                script {
+                    if (params.ENABLE_NOTIFICATIONS) {
+                        sendTelegramMessage("🐳 <b>Docker Image Built & Pushed</b>\n" +
+                                        "🏷️ **Backend:** asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-be:${env.FINAL_TAG}\n" +
+                                        "🏷️ **Frontend:** asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-fe:${env.FINAL_TAG}")
                     }
                 }
-                // ... (sisanya tetap sama)
             }
         }
 
