@@ -1,114 +1,128 @@
-# Experiment Jenkins
+# Panduan CI/CD Pipeline Jenkins
 
-**Langkah 0** : Buat Volume untuk Jenkins
+Dokumen ini merangkum konfigurasi dan alur kerja pipeline CI/CD untuk aplikasi frontend dan backend menggunakan Jenkins, Docker, dan Google Cloud.
 
-```bash
-docker volume create jenkins-data
+## Struktur Pipeline
 
-docker run --name jenkins -p 8080:8080 -p 50000:50000 -v jenkins-data:/var/jenkins_home jenkins/jenkins:lts
-```
+Pipeline ini diimplementasikan menggunakan Jenkins Declarative Pipeline dan terdiri dari beberapa tahap (stages) yang terstruktur.
 
-**Langkah 1** : Siapkan container Jenkins (customer)
+### Visualisasi Pipeline
 
-```bash
-# build customer docker image for jenkins (docker installed inside)
-docker build -t my-jenkins:lts -f Dockerfile.jenkins .
+![ci-cd-pipeline](./assets/ci-cd-pipeline.png)
 
-# remove old plain jenkins (if exists)
-docker stop jenkins
-docker rm jenkins
+* **Checkout SCM**: Checkout repositori Jenkinsfile.
+* **Pipeline Initialization**: Mengatur variabel lingkungan dan notifikasi awal.
+* **Source Code Checkout**: Mengambil kode sumber dari repositori backend, frontend, dan ops. Tahap ini diparalelkan untuk checkout `backend-repo` dan `frontend-repo` agar lebih efisien.
+* **Inject Secrets**: Menginjeksikan private key Firebase dari Jenkins Credentials ke direktori `backend-repo/src/main/resources`.
+* **Build Application**: Membangun aplikasi backend (Maven) dan frontend (Node.js). Tahap ini juga diparalelkan.
+* **Testing & Quality Analysis**: Menjalankan pengujian unit, analisis kualitas kode, dan pemindaian keamanan secara paralel.
+* **Package Application**: Mengemas aplikasi yang sudah selesai dibangun.
+* **Docker Build & Registry**: Membangun image Docker untuk backend dan frontend, kemudian mendorongnya ke Google Container Registry (GCR). Proses ini juga berjalan secara paralel.
+* **Staging Deployment**: Menerapkan image Docker ke lingkungan staging.
+* **Staging Tests**: Menjalankan tes integrasi di lingkungan staging.
+* **QA Approval**: Menunggu persetujuan QA sebelum melanjutkan ke deployment produksi.
+* **Create GKE Cluster**: Tahap opsional yang membuat cluster GKE baru menggunakan Terraform. Tahap ini dilewati (ditandai dengan panah) jika parameter tidak diaktifkan.
+* **Production Deployment**: Menerapkan manifest Kubernetes ke GKE.
+* **Production Verification**: Verifikasi keberhasilan deployment produksi.
+* **Post-Deployment Report**: Menghasilkan laporan akhir deployment.
+* **Post Actions**: Membersihkan workspace setelah pipeline selesai.
 
-# cek ID group docker di host
-getent group docker
+## Langkah-langkah Implementasi
 
-# run the custom jenkins image
-# APABILA JENKINS FILE DIJALANKAN SECARA LOCAL
-docker run \
-  --name jenkins \
-  -p 8080:8080 \
-  -p 50000:50000 \
-  -v jenkins-data:/var/jenkins_home \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  --group-add 1001 \
-  my-jenkins:lts
+### Langkah 1: Persiapan Lingkungan Jenkins
 
-# APABILA JENKINSFILE DIJALANKAN DI VIRTUAL MACHINE (GOOGLE CLOUD)
-docker run -d -p 8080:8080 -p 50000:50000 \
-  -v jenkins-data:/var/jenkins_home \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  --user 1000:412 \
-  --name jenkins \
-  asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins:1.0
-  
-```
+1. **Buat Volume Docker untuk Jenkins**:
 
-**Langkah 2** : Install plugins dan atur credentials
+    ```bash
+    docker volume create jenkins-data
+    ```
 
-- Agar build bisa ter-trigger dari Github:
-  - Docker Pipeline
-    - Manage Jenkins > Manage Plugins > `Docker Pipeline`
-  - NodeJS
-    - Manage Jenkins > Manage Plugins > NodeJS Plugin > tools
-      - node18
-      - v18.19.1
-  - Jdk
-    - jdk21
-    - automatically
+2. **Siapkan Docker Image Jenkins dengan Docker-in-Docker**:
+      * Buat `Dockerfile.jenkins` yang menginstal Docker CLI.
+      * Bangun image:
 
-- Agar docker build & push ke registry sukses
-  - upload `.json` (secret key service accounts) ke jenkins secrets
-    - ID : `gcr-credentials`
-  - tambahkan jenkins ke group
-    - `grep '^docker:' /etc/group`
-    - contoh output : `docker:!:412:chronos,bostangsteiitb2020` 
+        ```bash
+        docker build -t my-jenkins:lts -f Dockerfile.jenkins .
+        ```
 
-**Langkah 3** : Buat new build (pipeline), tambahkan GithubSCM (agar baca Jenkinsfile dari repo)
+      * Dorong ke Container Registry (jika menggunakan GKE/VM):
 
-```bash
-docker build -t asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins:1.0 -f Dockerfile.jenkins .
+        ```bash
+        docker tag my-jenkins:lts asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins:1.0
+        docker push asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins:1.0
+        ```
 
-docker push asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins:1.0
-```
+3. **Jalankan Jenkins Container**:
+      * Hentikan dan hapus container lama:
 
-## Kredensial yang harus disimpan
+        ```bash
+        docker stop jenkins && docker rm jenkins
+        ```
 
-![credentials-to-be-stored](./assets/credentials-to-be-stored.png)
+      * Dapatkan GID (Group ID) `docker` di host:
 
-## Troubleshooting VM
+        ```bash
+        getent group docker # atau `grep '^docker:' /etc/group` di beberapa distro Linux
+        ```
 
-1. Proses build Jenkins tidak kunjung selesai
+      * Jalankan container, pastikan `jenkins` user memiliki akses ke Docker socket.
+      * **Untuk Local (dengan group ID dinamis):**
 
-```bash
-# apabila ada proses build yang tidak selesai-selesai
-# -> kemungkinan karena storage kurang
-# SSH ke dalam VM lalu 
-df -h
+        ```bash
+        docker run \
+          --name jenkins \
+          -p 8080:8080 -p 50000:50000 \
+          -v jenkins-data:/var/jenkins_home \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          --group-add $(getent group docker | cut -d: -f3) \
+          my-jenkins:lts
+        ```
 
-# solusi : tambahkan storage
-```
+      * **Untuk VM (contoh user ID 1000, GID 412):**
 
-2. Docker socket tdk bisa diakses
+        ```bash
+        docker run -d -p 8080:8080 -p 50000:50000 \
+          -v jenkins-data:/var/jenkins_home \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          --user 1000:412 \
+          --name jenkins \
+          asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins:1.0
+        ```
 
-```bash
-# cek ID group docker di host
-getent group docker # ubuntu
-grep '^docker:' /etc/group    # debian
+### Langkah 2: Konfigurasi Jenkins
 
-# run the custom jenkins image
-# APABILA JENKINSFILE DIJALANKAN DI VIRTUAL MACHINE (GOOGLE CLOUD)
-docker run -d -p 8080:8080 -p 50000:50000 \
-  -v jenkins-data:/var/jenkins_home \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  --user 1000:412 \
-  --name jenkins \
-  asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins:1.0
+1. **Install Plugins**:
+      * Manajemen Git, Docker Pipeline, NodeJS Plugin, dan JDK Tool.
+2. **Konfigurasi Tools**:
+      * **NodeJS**: Tambahkan NodeJS versi `v18.19.1` dengan nama `node18`.
+      * **JDK**: Tambahkan JDK versi `jdk21` dengan nama `jdk21`.
+3. **Simpan Credentials**:
+      * **GCR Credentials**: Simpan Service Account Key JSON sebagai **Secret file** dengan ID `gcr-credentials`. Kredensial ini juga akan digunakan untuk otentikasi `gcloud` dan Terraform.
+      * **Firebase Private Key**: Simpan Firebase Admin SDK JSON sebagai **Secret file** dengan ID `firebase-private-key`.
+      * **Firebase & Backend ENV Vars**: Simpan variabel lingkungan sensitif untuk frontend (seperti `VITE_FIREBASE_API_KEY`) sebagai **Secret text** dengan ID yang sesuai.
 
-docker stop jenkins
-docker rm jenkins
-docker run -p 8080:8080 -p 50000:50000 \
-  -v jenkins-data:/var/jenkins_home \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  --user 1000:412 \
-  --name jenkins \
-  asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins:1.0
-```
+![credentials](./assets/credentials-to-be-stored.png)
+
+### Langkah 3: Eksekusi Pipeline
+
+1. Buat Jenkins Pipeline baru dan konfigurasikan untuk membaca `Jenkinsfile` dari repositori Git.
+2. Pipeline akan berjalan secara otomatis berdasarkan konfigurasi di `Jenkinsfile`.
+
+## Troubleshooting
+
+1. **Proses Build Jenkins Tidak Kunjung Selesai**:
+      * **Penyebab**: Ruang disk di VM Jenkins kemungkinan penuh.
+      * **Diagnosis**: Jalankan `df -h` via SSH untuk memeriksa penggunaan disk.
+      * **Solusi**: Hentikan VM, tingkatkan ukuran disk di Google Cloud Console, lalu nyalakan kembali VM.
+2. **`Permission denied` saat Menyalin File**:
+      * **Penyebab**: User Jenkins tidak memiliki hak tulis di direktori target (`src/main/resources`).
+      * **Solusi**: Tambahkan perintah `sh 'chmod -R 777 src/main/resources'` sebelum menyalin file untuk memastikan izin tulis.
+3. **Akses Jaringan atau IP Berubah**:
+      * **Penyebab**: Alamat IP eksternal VM masih ephemeral (dinamis).
+      * **Solusi**: Ubah alamat IP eksternal VM menjadi statis (reserved) di Google Cloud Console.
+
+## Catatan
+
+Tambahkan deskripsi yang jelas untuk setiap build history (baik sukses maupun gagal) untuk mempermudah devops melakukan troubleshooting.
+
+![build-history](./assets/build-history.png)
