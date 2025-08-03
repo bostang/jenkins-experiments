@@ -22,6 +22,7 @@ docker rm jenkins
 getent group docker
 
 # run the custom jenkins image
+# APABILA JENKINS FILE DIJALANKAN SECARA LOCAL
 docker run \
   --name jenkins \
   -p 8080:8080 \
@@ -31,13 +32,12 @@ docker run \
   --group-add 1001 \
   my-jenkins:lts
 
-docker run \
-  --name jenkins \
-  -p 8080:8080 \
-  -p 50000:50000 \
+# APABILA JENKINSFILE DIJALANKAN DI VIRTUAL MACHINE (GOOGLE CLOUD)
+docker run -d -p 8080:8080 -p 50000:50000 \
   -v jenkins-data:/var/jenkins_home \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  --group-add 1001 \
+  --user 1000:412 \
+  --name jenkins \
   asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins:1.0
   
 ```
@@ -57,7 +57,11 @@ docker run \
 
 - Agar docker build & push ke registry sukses
   - upload `.json` (secret key service accounts) ke jenkins secrets
-  - ID : `gcr-credentials`
+    - ID : `gcr-credentials`
+  - tambahkan jenkins ke group
+    - `grep '^docker:' /etc/group`
+    - contoh output : `docker:!:412:chronos,bostangsteiitb2020`
+    - 
 
 **Langkah 3** : Buat new build (pipeline), tambahkan GithubSCM (agar baca Jenkinsfile dari repo)
 

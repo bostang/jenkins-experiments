@@ -298,7 +298,7 @@ pipeline {
                     dir('backend-repo') {
                         echo '🐳 Building backend Docker image...'
                         
-                        def beImage = docker.build("asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-be:${env.FINAL_TAG}", ".")
+                        def beImage = docker.build("asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-be:${env.FINAL_TAG}", ".")
                         
                         echo '✅ Backend Docker image built successfully'
 
@@ -308,14 +308,14 @@ pipeline {
                         docker.withRegistry('https://asia.gcr.io', 'gcr-credentials') {
                             beImage.push()
                         }
-                        echo "✅ Backend Docker image pushed to GCR: asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-be:${env.FINAL_TAG}"
+                        echo "✅ Backend Docker image pushed to GCR: asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-be:${env.FINAL_TAG}"
                     }
 
                     // Frontend Docker Build
                     dir('frontend-repo') {
                         echo '🐳 Building frontend Docker image...'
                         
-                        def feImage = docker.build("asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-fe:${env.FINAL_TAG}", ".")
+                        def feImage = docker.build("asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-fe:${env.FINAL_TAG}", ".")
                         
                         echo '✅ Frontend Docker image built successfully'
                         
@@ -323,15 +323,15 @@ pipeline {
                         docker.withRegistry('https://asia.gcr.io', 'gcr-credentials') {
                             feImage.push()
                         }
-                        echo "✅ Frontend Docker image pushed to GCR: asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-fe:${env.FINAL_TAG}"
+                        echo "✅ Frontend Docker image pushed to GCR: asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-fe:${env.FINAL_TAG}"
                     }
                 }
 
                 script {
                     if (params.ENABLE_NOTIFICATIONS) {
                         sendTelegramMessage("🐳 <b>Docker Image Built & Pushed</b>\n" +
-                                        "🏷️ **Backend:** asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-be:${env.FINAL_TAG}\n" +
-                                        "🏷️ **Frontend:** asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-fe:${env.FINAL_TAG}")
+                                        "🏷️ **Backend:** asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-be:${env.FINAL_TAG}\n" +
+                                        "🏷️ **Frontend:** asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-fe:${env.FINAL_TAG}")
                     }
                 }
             }
