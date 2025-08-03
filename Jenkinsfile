@@ -149,6 +149,9 @@ pipeline {
         // jangan lupa untu menginstall JDK 21 di Jenkins Global Tool Configuration
         // dan pastikan nama JDK sesuai dengan yang digunakan di bawah ini
         // -> misal: jdk21
+        // jangan lupa untuk menginstal Node JS
+        // dan pada tools berikan nama 'node18' berikan versi `v18.19.1`
+        // ✅ SUKSES (2025-08-03 15:20)
         stage('🔨 Build Application') {
             steps {
                 script {
