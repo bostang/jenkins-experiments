@@ -35,7 +35,7 @@ pipeline {
 
         // Git Repository URL & // Branch Name
         GIT_REPO_URL_OPS = 'https://github.com/qanitasyaf/ops-secure-onboarding-system.git'
-        BRANCH_NAME_OPS = 'main'
+        BRANCH_NAME_OPS = 'master'
 
         GIT_REPO_URL_BE = 'https://github.com/bostang/backend-secure-onboarding-system.git'
         BRANCH_NAME_BE = 'deploy/gke'

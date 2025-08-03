@@ -30,6 +30,16 @@ docker run \
   -v /var/run/docker.sock:/var/run/docker.sock \
   --group-add 1001 \
   my-jenkins:lts
+
+docker run \
+  --name jenkins \
+  -p 8080:8080 \
+  -p 50000:50000 \
+  -v jenkins-data:/var/jenkins_home \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  --group-add 1001 \
+  asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins:1.0
+  
 ```
 
 **Langkah 2** : Install plugins dan atur credentials
@@ -41,3 +51,9 @@ docker run \
     - Manage Jenkins > Manage Plugins > NodeJS Plugin
 
 **Langkah 3** : Buat new build (pipeline), tambahkan GithubSCM (agar baca Jenkinsfile dari repo)
+
+```bash
+docker build -t asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins:1.0 -f Dockerfile.jenkins .
+
+docker push asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins:1.0
+```
