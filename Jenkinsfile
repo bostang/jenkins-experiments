@@ -33,10 +33,16 @@ pipeline {
         TEST_THRESHOLD = '80'
         COVERAGE_THRESHOLD = '70'
 
-        // Git Repository URL
-        GIT_REPO_URL = 'https://github.com/bostang/jenkins-experiments.git'
-        // Branch Name
-        BRANCH_NAME = 'main'
+        // Git Repository URL & // Branch Name
+        GIT_REPO_URL_OPS = 'https://github.com/bostang/jenkins-experiments.git'
+        BRANCH_NAME_OPS = 'main'
+
+        GIT_REPO_URL_BE = 'https://github.com/bostang/backend-secure-onboarding-system.git'
+        BRANCH_NAME_BE = 'deploy/gke'
+
+        GIT_REPO_URL_FE = 'https://github.com/alvarolt17/frontend-secure-onboarding-system.git'
+        BRANCH_NAME_FE = 'deploy/gke'
+
     }
     
     parameters {
@@ -88,21 +94,54 @@ pipeline {
         stage('📥 Source Code Checkout') {
             steps {
                 echo '📥 Checking out source code...'
-                // Echo instead of actual git checkout
-                echo "git url: ${env.GIT_REPO_URL}, branch: ${env.BRANCH_NAME ?: 'main'}"
                 
                 script {
-                    // Mock commit info
-                    env.GIT_COMMIT_SHORT = 'abc1234'
-                    env.GIT_COMMIT_MSG = 'Fix pipeline to use echo statements only'
+                    // Checkout repositori Ops
+                    echo "--- Checking out Ops repository ---"
+                    dir('ops-repo') { // Membuat direktori 'ops-repo' untuk repositori ini
+                        checkout([
+                            $class: 'GitSCM',
+                            branches: [[name: "refs/heads/${env.BRANCH_NAME_OPS}"]],
+                            userRemoteConfigs: [[url: env.GIT_REPO_URL_OPS]]
+                        ])
+                    }
                     
+                    // Checkout repositori Backend
+                    echo "--- Checking out Backend repository ---"
+                    dir('backend-repo') { // Membuat direktori 'backend-repo'
+                        checkout([
+                            $class: 'GitSCM',
+                            branches: [[name: "refs/heads/${env.BRANCH_NAME_BE}"]],
+                            userRemoteConfigs: [[url: env.GIT_REPO_URL_BE]]
+                        ])
+                    }
+                    
+                    // Checkout repositori Frontend
+                    echo "--- Checking out Frontend repository ---"
+                    dir('frontend-repo') { // Membuat direktori 'frontend-repo'
+                        checkout([
+                            $class: 'GitSCM',
+                            branches: [[name: "refs/heads/${env.BRANCH_NAME_FE}"]],
+                            userRemoteConfigs: [[url: env.GIT_REPO_URL_FE]]
+                        ])
+                    }
+
+                    // Dapatkan informasi commit dari salah satu repo (misal: backend)
+                    // Langkah ini opsional, tapi berguna untuk notifikasi
+                    def beCommit = sh(script: "cd backend-repo && git log -1 --pretty=format:'%h'", returnStdout: true).trim()
+                    def beMessage = sh(script: "cd backend-repo && git log -1 --pretty=format:'%s'", returnStdout: true).trim()
+                    
+                    env.GIT_COMMIT_SHORT_BE = beCommit
+                    env.GIT_COMMIT_MSG_BE = beMessage
+
                     if (params.ENABLE_NOTIFICATIONS) {
-                        sendTelegramMessage("📥 <b>Checkout Complete</b>\n🔗 Commit: ${env.GIT_COMMIT_SHORT}\n💬 ${env.GIT_COMMIT_MSG}")
+                        sendTelegramMessage("📥 <b>Checkout Complete</b>\n🔗 **BE Commit:** ${env.GIT_COMMIT_SHORT_BE}\n💬 *${env.GIT_COMMIT_MSG_BE}*")
                     }
                 }
                 
-                echo 'ls -la'
                 echo '✅ Source code checkout completed'
+                echo '--- Direktori Kerja ---'
+                sh 'ls -la'
             }
         }
         
