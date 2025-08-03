@@ -60,8 +60,7 @@ docker run -d -p 8080:8080 -p 50000:50000 \
     - ID : `gcr-credentials`
   - tambahkan jenkins ke group
     - `grep '^docker:' /etc/group`
-    - contoh output : `docker:!:412:chronos,bostangsteiitb2020`
-    - 
+    - contoh output : `docker:!:412:chronos,bostangsteiitb2020` 
 
 **Langkah 3** : Buat new build (pipeline), tambahkan GithubSCM (agar baca Jenkinsfile dari repo)
 
@@ -70,3 +69,7 @@ docker build -t asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins:1.0 -f
 
 docker push asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins:1.0
 ```
+
+## Kredensial yang harus disimpan
+
+![credentials-to-be-stored](./assets/credentials-to-be-stored.png)

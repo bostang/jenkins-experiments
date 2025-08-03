@@ -322,6 +322,7 @@ pipeline {
         }
         
         // ✅ SUKSES (2025-08-03 16:34)
+        // ✅ UPDATE (2025-08-03 16:56 -- using JENKINS secrets u/ simpan VITE_XXX)
         stage('🐳 Docker Build & Registry') {
             steps {
                 script {
@@ -345,29 +346,47 @@ pipeline {
                         'Build & Push Frontend': {
                             dir('frontend-repo') {
                                 echo '🐳 Building frontend Docker image...'
-                                def feImage = docker.build("asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-fe:${env.FINAL_TAG}", ".")
-                                echo '✅ Frontend Docker image built successfully'
-                                
-                                withCredentials([file(credentialsId: 'gcr-credentials', variable: 'GCR_KEY_FILE')]) {
-                                    echo '🔐 Authenticating to Google Container Registry...'
-                                    sh "cat ${GCR_KEY_FILE} | docker login -u _json_key --password-stdin https://asia.gcr.io"
-                                    docker.withRegistry('https://asia.gcr.io') {
-                                        feImage.push()
+
+                                // Gunakan withCredentials untuk mengekspos semua variabel rahasia
+                                withCredentials([
+                                    string(credentialsId: 'VITE_BACKEND_BASE_URL', variable: 'VITE_BACKEND_BASE_URL'),
+                                    string(credentialsId: 'VITE_VERIFICATOR_BASE_URL', variable: 'VITE_VERIFICATOR_BASE_URL'),
+                                    string(credentialsId: 'VITE_FIREBASE_API_KEY', variable: 'VITE_FIREBASE_API_KEY'),
+                                    string(credentialsId: 'VITE_FIREBASE_AUTH_DOMAIN', variable: 'VITE_FIREBASE_AUTH_DOMAIN'),
+                                    string(credentialsId: 'VITE_FIREBASE_PROJECT_ID', variable: 'VITE_FIREBASE_PROJECT_ID'),
+                                    string(credentialsId: 'VITE_FIREBASE_STORAGE_BUCKET', variable: 'VITE_FIREBASE_STORAGE_BUCKET'),
+                                    string(credentialsId: 'VITE_FIREBASE_MESSAGING_SENDER_ID', variable: 'VITE_FIREBASE_MESSAGING_SENDER_ID'),
+                                    string(credentialsId: 'VITE_FIREBASE_APP_ID', variable: 'VITE_FIREBASE_APP_ID')
+                                ]) {
+                                    // Bangun string build-arg secara dinamis
+                                    def buildArgs = """
+                                        --build-arg VITE_BACKEND_BASE_URL=${VITE_BACKEND_BASE_URL} \
+                                        --build-arg VITE_VERIFICATOR_BASE_URL=${VITE_VERIFICATOR_BASE_URL} \
+                                        --build-arg VITE_FIREBASE_API_KEY=${VITE_FIREBASE_API_KEY} \
+                                        --build-arg VITE_FIREBASE_AUTH_DOMAIN=${VITE_FIREBASE_AUTH_DOMAIN} \
+                                        --build-arg VITE_FIREBASE_PROJECT_ID=${VITE_FIREBASE_PROJECT_ID} \
+                                        --build-arg VITE_FIREBASE_STORAGE_BUCKET=${VITE_FIREBASE_STORAGE_BUCKET} \
+                                        --build-arg VITE_FIREBASE_MESSAGING_SENDER_ID=${VITE_FIREBASE_MESSAGING_SENDER_ID} \
+                                        --build-arg VITE_FIREBASE_APP_ID=${VITE_FIREBASE_APP_ID}
+                                    """.trim()
+
+                                    def feImage = docker.build("asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-fe:${env.FINAL_TAG}", "${buildArgs} .")
+                                    echo '✅ Frontend Docker image built successfully'
+                                    
+                                    withCredentials([file(credentialsId: 'gcr-credentials', variable: 'GCR_KEY_FILE')]) {
+                                        echo '🔐 Authenticating to Google Container Registry...'
+                                        sh "cat ${GCR_KEY_FILE} | docker login -u _json_key --password-stdin https://asia.gcr.io"
+                                        docker.withRegistry('https://asia.gcr.io') {
+                                            feImage.push()
+                                        }
                                     }
+                                    echo "✅ Frontend Docker image pushed to GCR: asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-fe:${env.FINAL_TAG}"
                                 }
-                                echo "✅ Frontend Docker image pushed to GCR: asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-fe:${env.FINAL_TAG}"
                             }
                         }
                     )
                 }
-
-                script {
-                    if (params.ENABLE_NOTIFICATIONS) {
-                        sendTelegramMessage("🐳 <b>Docker Image Built & Pushed</b>\n" +
-                                        "🏷️ **Backend:** asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-be:${env.FINAL_TAG}\n" +
-                                        "🏷️ **Frontend:** asia.gcr.io/primeval-rune-467212-t9/wondr-desktop-jenkins-fe:${env.FINAL_TAG}")
-                    }
-                }
+            // ... (sisa kode tetap sama)
             }
         }
 
